@@ -1,13 +1,3 @@
-//provider
-provider "azurerm" { 
-  features {}
-}
-//create resource group name main
-resource "azurerm_resource_group" "main" {
-  name     = "${var.dhia_map["prefix"]}-resources"
-  location = var.dhia_map["location"]
-}
-
 //Instance number
 locals {
   instance_count = 2
@@ -137,7 +127,7 @@ resource "azurerm_linux_virtual_machine" "main" {
     publisher = var.dhia_map["os_publisher"]
     offer     = var.dhia_map["os_offer"]
     sku       = var.dhia_map["os_sku"]
-    version   = var.dhia_map["version"]
+    version   = var.dhia_map["os_version"]
   }
 
   os_disk {
