@@ -4,18 +4,18 @@ provider "azurerm" {
 }
 //create resource group name main
 resource "azurerm_resource_group" "main" {
-  name     = "${var.prefix}-resources"
-  location = var.location
+  name     = "${var.dhia_map["prefix"]}-resources"
+  location = var.dhia_map["location"]
 }
 
 //Instance number
 locals {
   instance_count = 2
 }
-//Create Virtual main networ 
+//Create Virtual main network
 resource "azurerm_virtual_network" "main" {
   //Network Name
-  name                = "${var.prefix}-network"
+  name                = "${var.dhia_map["prefix"]}-network"
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -31,7 +31,7 @@ resource "azurerm_subnet" "internal" {
 
 //Create Public ip Dynamiquement
 resource "azurerm_public_ip" "pip" {
-  name                = "${var.prefix}-pip"
+  name                = "${var.dhia_map["prefix"]}-pip"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   allocation_method   = "Dynamic"
@@ -39,7 +39,7 @@ resource "azurerm_public_ip" "pip" {
 //Create Network interface to be up for the VMS 
 resource "azurerm_network_interface" "main" {
   count               = local.instance_count
-  name                = "${var.prefix}-nic${count.index}"
+  name                = "${var.dhia_map["prefix"]}-nic${count.index}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
 
@@ -51,7 +51,7 @@ resource "azurerm_network_interface" "main" {
 }
 //Azure Security agains 
 resource "azurerm_availability_set" "avset" {
-  name                         = "${var.prefix}avset"
+  name                         = "${var.dhia_map["prefix"]}avset"
   location                     = azurerm_resource_group.main.location
   resource_group_name          = azurerm_resource_group.main.name
   platform_fault_domain_count  = 2
@@ -78,7 +78,7 @@ resource "azurerm_network_security_group" "webserver" {
 
 //Creare Azure Load balancer
 resource "azurerm_lb" "example" {
-  name                = "${var.prefix}-lb"
+  name                = "${var.dhia_map["prefix"]}-lb"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
 
@@ -93,17 +93,25 @@ resource "azurerm_lb_backend_address_pool" "example" {
   loadbalancer_id     = azurerm_lb.example.id
   name                = "BackEndAddressPool"
 }
-// Azurerm lb
+resource "azurerm_lb_probe" "example"{
+  resource_group_name = azurerm_resource_group.main.name
+  loadbalancer_id     = azurerm_lb.example.id
+  name                = "ssh-probe"
+  protocol            = "Tcp"
+  port                = 22
+}
+// Azurerm lb Nat Rule  to filter
 resource "azurerm_lb_nat_rule" "example" {
   resource_group_name            = azurerm_resource_group.main.name
   loadbalancer_id                = azurerm_lb.example.id
-  name                           = "HTTPSAccess"
+  name                           = "ssh-probe"
   protocol                       = "Tcp"
-  frontend_port                  = 443
-  backend_port                   = 443
+  frontend_port                  = 220
+  backend_port                   = 22
   frontend_ip_configuration_name = azurerm_lb.example.frontend_ip_configuration[0].name
 }
 
+//
 resource "azurerm_network_interface_backend_address_pool_association" "example" {
   count                   = local.instance_count
   backend_address_pool_id = azurerm_lb_backend_address_pool.example.id
@@ -113,11 +121,11 @@ resource "azurerm_network_interface_backend_address_pool_association" "example" 
 
 resource "azurerm_linux_virtual_machine" "main" {
   count                           = local.instance_count
-  name                            = "${var.prefix}-vm${count.index}"
+  name                            = "${var.dhia_map["prefix"]}-vm${count.index}"
   resource_group_name             = azurerm_resource_group.main.name
   location                        = azurerm_resource_group.main.location
   size                            = "Standard_F2"
-  admin_username                  = "adminuser"
+  admin_username                  = var.dhia_map["username"]
   admin_password                  = "P@ssw0rd1234!"
   availability_set_id             = azurerm_availability_set.avset.id
   disable_password_authentication = false
@@ -126,10 +134,10 @@ resource "azurerm_linux_virtual_machine" "main" {
   ]
 
   source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS"
-    version   = "latest"
+    publisher = var.dhia_map["os_publisher"]
+    offer     = var.dhia_map["os_offer"]
+    sku       = var.dhia_map["os_sku"]
+    version   = var.dhia_map["version"]
   }
 
   os_disk {

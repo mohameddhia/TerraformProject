@@ -1,0 +1,2 @@
+prefix = "dhia"
+location = "westeurope"
